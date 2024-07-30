@@ -19,7 +19,7 @@ from Action import Action
 class MyAI( AI ):
 
 	def __init__(self, rowDimension, colDimension, totalMines, startX, startY):
-
+#bruh
 		########################################################################
 		#							YOUR CODE BEGINS						   #
 		########################################################################
