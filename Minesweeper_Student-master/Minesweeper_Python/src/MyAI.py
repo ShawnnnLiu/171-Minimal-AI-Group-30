@@ -68,10 +68,17 @@ class MyAI( AI ):
 			for j in range(self.colDimension):
 				if self.board[i][j] is None:  # If tile status is unknown
 					if self.onesUncovered == 2 and self.bombFound == False:
-						self.board[i+1][j-2] = True
 						self.awaitingFlag = True
 						self.bombFound = True
-						return Action(AI.Action.FLAG, i+1, j-2)
+						if j == 2:
+							self.board[i+1][j-2] = True
+							return Action(AI.Action.FLAG, i+1, j-2)
+						elif j == 3 or j == 4:
+							self.board[i+1][j-1] = True
+							return Action(AI.Action.FLAG, i+1, j-1)
+						elif j == 0:
+							self.board[i][j+4] = True
+							return Action(AI.Action.FLAG, i, j+4)
 					
 					self.board[i][j] = False  # Assume it will be uncovered
 					return Action(AI.Action.UNCOVER, i, j)
