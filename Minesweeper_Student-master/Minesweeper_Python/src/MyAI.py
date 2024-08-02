@@ -62,18 +62,17 @@ class MyAI( AI ):
 				self.awaitingFlag = False
 		elif number == 1:
 			self.onesUncovered += 1
-			print("WOAH 1 FOUND")
 		
 		# Attempt to uncover the next unknown tile
 		for i in range(self.rowDimension):
 			for j in range(self.colDimension):
 				if self.board[i][j] is None:  # If tile status is unknown
 					if self.onesUncovered == 2 and self.bombFound == False:
-						print("ACTIVATE!!!!", i+1, j-2)
 						self.board[i+1][j-2] = True
 						self.awaitingFlag = True
 						self.bombFound = True
 						return Action(AI.Action.FLAG, i+1, j-2)
+					
 					self.board[i][j] = False  # Assume it will be uncovered
 					return Action(AI.Action.UNCOVER, i, j)
 
