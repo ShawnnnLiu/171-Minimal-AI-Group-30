@@ -19,11 +19,25 @@ from Action import Action
 class MyAI( AI ):
 
 	def __init__(self, rowDimension, colDimension, totalMines, startX, startY):
-#bruh
+
 		########################################################################
 		#							YOUR CODE BEGINS						   #
 		########################################################################
-		pass
+        # Initialize board dimensions and mines information
+		self.rowDimension = rowDimension
+		self.colDimension = colDimension
+		self.totalMines = totalMines
+
+		# Initialize board state: None means unknown, True for flagged, False for cleared
+		self.board = [[None for _ in range(colDimension)] for _ in range(rowDimension)]
+		self.minesFlagged = 0
+		self.tilesUncovered = 0
+
+		# Starting point is typically uncovered by the game before the AI starts
+		self.startX = startX
+		self.startY = startY
+		self.board[startX][startY] = False  # Mark this tile as uncovered
+		self.tilesUncovered += 1
 		########################################################################
 		#							YOUR CODE ENDS							   #
 		########################################################################
@@ -34,9 +48,19 @@ class MyAI( AI ):
 		########################################################################
 		#							YOUR CODE BEGINS						   #
 		########################################################################
+        # Check if the last action was to uncover a mine
+		if number == -1:
+			return Action(AI.Action.LEAVE)
+
+		# Attempt to uncover the next unknown tile
+		for i in range(self.rowDimension):
+			for j in range(self.colDimension):
+				if self.board[i][j] is None:  # If tile status is unknown
+					self.board[i][j] = False  # Assume it will be uncovered
+					return Action(AI.Action.UNCOVER, i, j)
+
+		# If no actions are available, just leave the game
 		return Action(AI.Action.LEAVE)
 		########################################################################
 		#							YOUR CODE ENDS							   #
 		########################################################################
-
-# hello
