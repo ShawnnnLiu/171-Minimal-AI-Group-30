@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+#<<<<<<< HEAD
 # ==============================CS-199==================================
 # FILE:			MyAI.py
 #
@@ -39,6 +39,11 @@ class MyAI( AI ):
 		self.startY = startY
 		self.board[startX][startY] = False  # Mark this tile as uncovered
 		self.tilesUncovered += 1
+
+		# For Minimal AI
+		self.onesUncovered = 0
+		self.awaitingFlag = False
+		self.bombFound = False
 		########################################################################
 		#							YOUR CODE ENDS							   #
 		########################################################################
@@ -51,16 +56,29 @@ class MyAI( AI ):
 		########################################################################
         # Check if the last action was to uncover a mine
 		if number == -1:
-			return Action(AI.Action.LEAVE)
-
+			if self.awaitingFlag == False:
+				return Action(AI.Action.LEAVE)
+			else:
+				self.awaitingFlag = False
+		elif number == 1:
+			self.onesUncovered += 1
+			print("WOAH 1 FOUND")
+		
 		# Attempt to uncover the next unknown tile
 		for i in range(self.rowDimension):
 			for j in range(self.colDimension):
 				if self.board[i][j] is None:  # If tile status is unknown
+					if self.onesUncovered == 2 and self.bombFound == False:
+						print("ACTIVATE!!!!", i+1, j-2)
+						self.board[i+1][j-2] = True
+						self.awaitingFlag = True
+						self.bombFound = True
+						return Action(AI.Action.FLAG, i+1, j-2)
 					self.board[i][j] = False  # Assume it will be uncovered
 					return Action(AI.Action.UNCOVER, i, j)
 
 		# If no actions are available, just leave the game
+		
 		return Action(AI.Action.LEAVE)
 		########################################################################
 		#							YOUR CODE ENDS							   #
