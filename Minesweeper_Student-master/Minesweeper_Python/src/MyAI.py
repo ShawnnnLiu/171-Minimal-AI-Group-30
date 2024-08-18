@@ -37,17 +37,37 @@ class MyAI( AI ):
 		# Starting point is typically uncovered by the game before the AI starts
 		self.startX = startX
 		self.startY = startY
-		self.board[startX][startY] = False  # Mark this tile as uncovered
-		self.tilesUncovered += 1
 
-		# For Minimal AI
-		self.onesUncovered = 0
-		self.awaitingFlag = False
-		self.bombFound = False
+		# For suspicion table
+		self.suspicionTable = [[0 for _ in range(colDimension)] for _ in range(rowDimension)]
+		self.uncovered = []
 		########################################################################
 		#							YOUR CODE ENDS							   #
 		########################################################################
 
+	def print_suspicion_table(self):
+		print("Suspicion Table:")
+		for row in self.suspicion_table:
+			print(" ".join(f"{cell:2}" for cell in row))
+		print()  # Adds a blank line after the table for readability
+
+
+	def update_suspicion_table(self, row, col, number):
+		for i in range(max(0, row - 1), min(self.row_dimension, row + 2)):
+			for j in range(max(0, col - 1), min(self.col_dimension, col + 2)):
+				if (i, j) not in self.uncovered:
+					self.suspicion_table[i][j] += number
+		self.print_suspicion_table()
+
+	def find_lowest_suspicion_tile(self):
+		min_suspicion = float('inf')
+		min_tile = None
+		for i in range(self.row_dimension):
+			for j in range(self.col_dimension):
+				if (i, j) not in self.uncovered and self.suspicion_table[i][j] < min_suspicion:
+					min_suspicion = self.suspicion_table[i][j]
+					min_tile = (i, j)
+		return min_tile
 		
 	def getAction(self, number: int) -> "Action Object":
 
@@ -60,28 +80,22 @@ class MyAI( AI ):
 				return Action(AI.Action.LEAVE)
 			else:
 				self.awaitingFlag = False
-		elif number == 1:
-			self.onesUncovered += 1
-		
-		# Attempt to uncover the next unknown tile
-		for i in range(self.rowDimension):
-			for j in range(self.colDimension):
-				if self.board[i][j] is None:  # If tile status is unknown
-					if self.onesUncovered == 2 and self.bombFound == False:
-						self.awaitingFlag = True
-						self.bombFound = True
-						if j == 2:
-							self.board[i+1][j-2] = True
-							return Action(AI.Action.FLAG, i+1, j-2)
-						elif j == 3 or j == 4:
-							self.board[i+1][j-1] = True
-							return Action(AI.Action.FLAG, i+1, j-1)
-						elif j == 0:
-							self.board[i][j+4] = True
-							return Action(AI.Action.FLAG, i, j+4)
-					
-					self.board[i][j] = False  # Assume it will be uncovered
-					return Action(AI.Action.UNCOVER, i, j)
+		elif number == 0:
+			self.update_suspicion_table(self.uncovered[-1][0], self.uncovered[-1][1], -10)
+		else:
+			self.update_suspicion_table(self.uncovered[-1][0], self.uncovered[-1][1], number)
+
+			
+
+		if not self.uncovered:
+			self.uncovered.append((self.startX, self.startY))
+			Action(AI.Action.UNCOVER, self.startX, self.startY)
+		else:
+			coord = self.find_lowest_suspicion_tile()
+			print("LOWEST SUSPICION TILE: " + coord)
+			self.uncovered.append(coord)
+			Action(AI.Action.UNCOVER, coord[0], coord[1])
+
 
 		# If no actions are available, just leave the game
 		
