@@ -37,64 +37,82 @@ class MyAI( AI ):
 		# Starting point is typically uncovered by the game before the AI starts
 		self.startX = startX
 		self.startY = startY
+		
 
 		# For suspicion table
 		self.suspicionTable = [[0 for _ in range(colDimension)] for _ in range(rowDimension)]
 		self.uncovered = []
+		self.suspicionTable[startX][startY] = 100000
+		self.uncovered.append((startX, startY))
+
+		# Truth board
+		self.truth_board = [['.' for _ in range(colDimension)] for _ in range(rowDimension)]
+		self.truth_board[startX][startY] = 0
 		########################################################################
 		#							YOUR CODE ENDS							   #
 		########################################################################
 
+	def client_coord_to_server(self, coord):
+		return (coord[0]+1, self.colDimension-coord[1])
+	
+	def server_coord_to_client(self, coord):
+		return (coord[0]-1, self.colDimension-coord[1])
+
 	def print_suspicion_table(self):
 		print("Suspicion Table:")
-		for row in self.suspicion_table:
-			print(" ".join(f"{cell:2}" for cell in row))
+		for col in range(self.colDimension):
+			print(" ".join(f"{self.suspicionTable[row][self.colDimension - 1 - col]:2}" for row in range(self.rowDimension)))
 		print()  # Adds a blank line after the table for readability
 
+	def print_truth_table(self):
+		print("Truth Table:")
+		for col in range(self.colDimension):
+			print(" ".join(f"{self.truth_board[row][self.colDimension - 1 - col]:2}" for row in range(self.rowDimension)))
+		print()  # Adds a blank line after the table for readability
 
 	def update_suspicion_table(self, row, col, number):
-		for i in range(max(0, row - 1), min(self.row_dimension, row + 2)):
-			for j in range(max(0, col - 1), min(self.col_dimension, col + 2)):
+		for j in range(max(0, col - 1), min(self.colDimension, col + 2)):
+			for i in range(max(0, row - 1), min(self.rowDimension, row + 2)):
 				if (i, j) not in self.uncovered:
-					self.suspicion_table[i][j] += number
-		self.print_suspicion_table()
+					self.suspicionTable[i][j] += number
+		#self.print_suspicion_table() # Remember to remove print line
+
+	def update_truth_table(self, row, col, number):
+		self.truth_board[row][col] = number
+		#self.print_truth_table() # Remember to remove print line
 
 	def find_lowest_suspicion_tile(self):
 		min_suspicion = float('inf')
 		min_tile = None
-		for i in range(self.row_dimension):
-			for j in range(self.col_dimension):
-				if (i, j) not in self.uncovered and self.suspicion_table[i][j] < min_suspicion:
-					min_suspicion = self.suspicion_table[i][j]
+		for j in range(self.colDimension):
+			for i in range(self.rowDimension):
+				if (i, j) not in self.uncovered and self.suspicionTable[i][j] < min_suspicion:
+					min_suspicion = self.suspicionTable[i][j]
 					min_tile = (i, j)
-		return min_tile
+		return (min_tile[0], min_tile[1])
 		
-	def getAction(self, number: int) -> "Action Object":
+	def getAction(self, number: int):
 
 		########################################################################
 		#							YOUR CODE BEGINS						   #
 		########################################################################
         # Check if the last action was to uncover a mine
 		if number == -1:
-			if self.awaitingFlag == False:
-				return Action(AI.Action.LEAVE)
-			else:
-				self.awaitingFlag = False
+			return Action(AI.Action.LEAVE)
 		elif number == 0:
-			self.update_suspicion_table(self.uncovered[-1][0], self.uncovered[-1][1], -10)
+			self.update_suspicion_table(self.uncovered[-1][0], self.uncovered[-1][1], (-5))
 		else:
 			self.update_suspicion_table(self.uncovered[-1][0], self.uncovered[-1][1], number)
 
-			
+		self.update_truth_table(self.uncovered[-1][0], self.uncovered[-1][1], number)
 
-		if not self.uncovered:
-			self.uncovered.append((self.startX, self.startY))
-			Action(AI.Action.UNCOVER, self.startX, self.startY)
-		else:
-			coord = self.find_lowest_suspicion_tile()
-			print("LOWEST SUSPICION TILE: " + coord)
-			self.uncovered.append(coord)
-			Action(AI.Action.UNCOVER, coord[0], coord[1])
+		self.print_truth_table()
+		coord = self.find_lowest_suspicion_tile()
+		#print("LOWEST SUSPICION TILE: " + str(coord[0]) + " " + str(coord[1])) # Remember to remove print statement
+		self.uncovered.append(coord)
+
+		self.suspicionTable[coord[0]][coord[1]] = 100000
+		return Action(AI.Action.UNCOVER, coord[0], coord[1])
 
 
 		# If no actions are available, just leave the game
@@ -103,3 +121,5 @@ class MyAI( AI ):
 		########################################################################
 		#							YOUR CODE ENDS							   #
 		########################################################################
+
+
