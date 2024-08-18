@@ -15,111 +15,136 @@
 
 from AI import AI
 from Action import Action
+import queue
+
+class MyAI(AI):
+    def __init__(self, rowDimension, colDimension, totalMines, startX, startY):
+        self.boardRows = colDimension
+        self.boardColumns = rowDimension
+        self.totalMines = totalMines
+        self.currentX = startX
+        self.currentY = startY
+
+        self.totalSafeSpots = (rowDimension * colDimension) - totalMines
+        self.gameBoard = [[-2 for _ in range(self.boardColumns)] for _ in range(self.boardRows)]
+        self.probabilityBoard = [[-2 for _ in range(self.boardColumns)] for _ in range(self.boardRows)]
+        self.safeQueue = queue.Queue()
+        self.visitedCells = []
+        self.exploredSpotsCount = 0
+
+        self.neighborOffsets = [(-1, 0), (-1, 1), (-1, -1), (0, 1), (0, -1), (1, 0), (1, -1), (1, 1)]
+
+    def isWithinBounds(self, x, y):
+        return 0 <= x < self.boardRows and 0 <= y < self.boardColumns
+
+    def addSafeNeighbors(self, x, y, number):
+        """Add neighbors of a cell to the safe queue if applicable."""
+        for offsetX, offsetY in self.neighborOffsets:
+            newX, newY = x + offsetX, y + offsetY
+            if self.isWithinBounds(newX, newY) and (newX, newY) not in self.visitedCells and (newX, newY) not in self.safeQueue.queue:
+                if number == 0:
+                    self.probabilityBoard[newX][newY] = 0
+                    self.safeQueue.put((newX, newY))
+                elif self.probabilityBoard[newX][newY] != 0:
+                    self.probabilityBoard[newX][newY] = max(1, self.probabilityBoard[newX][newY] + 1)
+
+    def handleVacantCells(self, row, col):
+        """Check and handle vacant cells around a given cell."""
+        vacant, flagged = self.identifyNeighbors(row, col)
+        if vacant and len(vacant) == self.gameBoard[row][col] - len(flagged):
+            vacantX, vacantY = vacant.pop(0)
+            self.decrementProbabilityAround(row, col)
+            self.removeFromQueue(vacantX, vacantY)
+            return vacantX, vacantY, AI.Action.FLAG
+        return None
+
+    def identifyNeighbors(self, row, col):
+        """Identify vacant and flagged neighbors around a given cell."""
+        vacant, flagged = [], []
+        for offsetX, offsetY in self.neighborOffsets:
+            newX, newY = row + offsetX, col + offsetY
+            if self.isWithinBounds(newX, newY):
+                if self.gameBoard[newX][newY] == -2:
+                    vacant.append((newX, newY))
+                elif self.gameBoard[newX][newY] == -1:
+                    flagged.append((newX, newY))
+        return vacant, flagged
+
+    def decrementProbabilityAround(self, row, col):
+        """Decrement the probability values of the neighbors around a given cell."""
+        for offsetX, offsetY in self.neighborOffsets:
+            newX, newY = row + offsetX, col + offsetY
+            if self.isWithinBounds(newX, newY) and self.probabilityBoard[newX][newY] > 0:
+                self.probabilityBoard[newX][newY] -= 1
+
+    def removeFromQueue(self, x, y):
+        """Remove a specific cell from the queue."""
+        newQueue = queue.Queue()
+        while not self.safeQueue.empty():
+            item = self.safeQueue.get()
+            if item != (x, y):
+                newQueue.put(item)
+        self.safeQueue = newQueue
+
+    def processZeroCase(self, number):
+        self.addSafeNeighbors(self.currentX, self.currentY, number)
+
+        for row in range(self.boardRows):
+            for col in range(self.boardColumns):
+                if (self.probabilityBoard[row][col] == 0 and 
+                    (row, col) not in self.visitedCells and 
+                    (row, col) not in self.safeQueue.queue):
+                    self.safeQueue.put((row, col))
+                    continue
+
+                if self.gameBoard[row][col] == -2:
+                    continue
+
+                result = self.handleVacantCells(row, col)
+                if result:
+                    return result
+
+                flaggedCount = len(self.identifyNeighbors(row, col)[1])
+                if self.gameBoard[row][col] == flaggedCount:
+                    self.markSafeNeighbors(row, col)
+
+        if not self.safeQueue.empty():
+            coordinate = self.safeQueue.get()
+            return coordinate[0], coordinate[1], AI.Action.UNCOVER
+        else:
+            for row in range(len(self.gameBoard)):
+                for col in range(len(self.gameBoard[row])):
+                    if self.gameBoard[row][col] == -2:
+                        return row, col, AI.Action.UNCOVER
+            
+            return 1, 1, AI.Action.LEAVE
+
+    def markSafeNeighbors(self, row, col):
+        """Mark all neighbors of a cell as safe if they are unflagged."""
+        for offsetX, offsetY in self.neighborOffsets:
+            newX, newY = row + offsetX, col + offsetY
+            if self.isWithinBounds(newX, newY) and self.gameBoard[row][col] >= 0:
+                self.probabilityBoard[newX][newY] = 0
+                if (newX, newY) not in self.visitedCells and (newX, newY) not in self.safeQueue.queue:
+                    self.safeQueue.put((newX, newY))
+
+    def getAction(self, number: int) -> "Action Object":
+        if self.exploredSpotsCount == self.totalSafeSpots:
+            return Action(AI.Action.LEAVE, 1, 1)
+        
+        x, y = self.currentX, self.currentY
+        self.gameBoard[x][y] = number 
+        self.probabilityBoard[x][y] = 0 
+        
+        self.currentX, self.currentY, actionType = self.processZeroCase(number)
+
+        if actionType != AI.Action.FLAG:
+            self.exploredSpotsCount += 1
+        self.visitedCells.append((self.currentX, self.currentY))
+        return Action(actionType, self.currentX, self.currentY)
 
 
-class MyAI( AI ):
-
-	def __init__(self, rowDimension, colDimension, totalMines, startX, startY):
-
-		########################################################################
-		#							YOUR CODE BEGINS						   #
-		########################################################################
-        # Initialize board dimensions and mines information
-		self.rowDimension = rowDimension
-		self.colDimension = colDimension
-		self.totalMines = totalMines
-
-		# Initialize board state: None means unknown, True for flagged, False for cleared
-		self.board = [[None for _ in range(colDimension)] for _ in range(rowDimension)]
-		self.minesFlagged = 0
-		self.tilesUncovered = 0
-
-		# Starting point is typically uncovered by the game before the AI starts
-		self.startX = startX
-		self.startY = startY
-		
-
-		# For suspicion table
-		self.suspicionTable = [[0 for _ in range(colDimension)] for _ in range(rowDimension)]
-		self.uncovered = []
-		self.suspicionTable[startX][startY] = 100000
-		self.uncovered.append((startX, startY))
-
-		# Truth board
-		self.truth_board = [['.' for _ in range(colDimension)] for _ in range(rowDimension)]
-		self.truth_board[startX][startY] = 0
-		########################################################################
-		#							YOUR CODE ENDS							   #
-		########################################################################
-
-	def client_coord_to_server(self, coord):
-		return (coord[0]+1, self.colDimension-coord[1])
-	
-	def server_coord_to_client(self, coord):
-		return (coord[0]-1, self.colDimension-coord[1])
-
-	def print_suspicion_table(self):
-		print("Suspicion Table:")
-		for col in range(self.colDimension):
-			print(" ".join(f"{self.suspicionTable[row][self.colDimension - 1 - col]:2}" for row in range(self.rowDimension)))
-		print()  # Adds a blank line after the table for readability
-
-	def print_truth_table(self):
-		print("Truth Table:")
-		for col in range(self.colDimension):
-			print(" ".join(f"{self.truth_board[row][self.colDimension - 1 - col]:2}" for row in range(self.rowDimension)))
-		print()  # Adds a blank line after the table for readability
-
-	def update_suspicion_table(self, row, col, number):
-		for j in range(max(0, col - 1), min(self.colDimension, col + 2)):
-			for i in range(max(0, row - 1), min(self.rowDimension, row + 2)):
-				if (i, j) not in self.uncovered:
-					self.suspicionTable[i][j] += number
-		#self.print_suspicion_table() # Remember to remove print line
-
-	def update_truth_table(self, row, col, number):
-		self.truth_board[row][col] = number
-		#self.print_truth_table() # Remember to remove print line
-
-	def find_lowest_suspicion_tile(self):
-		min_suspicion = float('inf')
-		min_tile = None
-		for j in range(self.colDimension):
-			for i in range(self.rowDimension):
-				if (i, j) not in self.uncovered and self.suspicionTable[i][j] < min_suspicion:
-					min_suspicion = self.suspicionTable[i][j]
-					min_tile = (i, j)
-		return (min_tile[0], min_tile[1])
-		
-	def getAction(self, number: int):
-
-		########################################################################
-		#							YOUR CODE BEGINS						   #
-		########################################################################
-        # Check if the last action was to uncover a mine
-		if number == -1:
-			return Action(AI.Action.LEAVE)
-		elif number == 0:
-			self.update_suspicion_table(self.uncovered[-1][0], self.uncovered[-1][1], (-5))
-		else:
-			self.update_suspicion_table(self.uncovered[-1][0], self.uncovered[-1][1], number)
-
-		self.update_truth_table(self.uncovered[-1][0], self.uncovered[-1][1], number)
-
-		self.print_truth_table()
-		coord = self.find_lowest_suspicion_tile()
-		#print("LOWEST SUSPICION TILE: " + str(coord[0]) + " " + str(coord[1])) # Remember to remove print statement
-		self.uncovered.append(coord)
-
-		self.suspicionTable[coord[0]][coord[1]] = 100000
-		return Action(AI.Action.UNCOVER, coord[0], coord[1])
 
 
-		# If no actions are available, just leave the game
-		
-		return Action(AI.Action.LEAVE)
-		########################################################################
-		#							YOUR CODE ENDS							   #
-		########################################################################
 
-
+			
